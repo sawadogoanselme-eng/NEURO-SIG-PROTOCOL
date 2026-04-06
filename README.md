@@ -93,6 +93,15 @@ Layer 3 — Decision
 
 ---
 
+## Simulation results (CMU Keystroke Dataset)
+
+| Dataset | Samples | AUC-ROC | FPR | FNR |
+|---|---|---|---|---|
+| CMU Benchmark (real humans) | 51 subjects / 20,400 keystrokes | 1.0000 | 0.00% | 0.00% |
+| Synthetic (3,000 samples) | 3,000 | 0.9999 | 1.82% | 0.00% |
+
+---
+
 ## Public datasets used for simulation
 
 - [Aalto University Keystroke Dataset](https://userinterfaces.aalto.fi/typing/) — 136M keystrokes, 168,000 participants
