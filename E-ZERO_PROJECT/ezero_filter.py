@@ -1,230 +1,123 @@
-"""
-E-ZERO FILTER — Version 5.1
-=============================
-Author : Sawadogo Anselme
-Version: 5.1 — April 2026
-
-Protocole de compression de prompts LLM bio-inspiré.
-Réduit le nombre de tokens en entrée tout en préservant
-le sens sémantique et logique du prompt original.
-
-Ce module est un projet de recherche indépendant.
-Il ne contient aucune référence à des projets tiers.
-"""
-
 import re
 import time
 import json
-from collections import Counter
+import os
 
-# ── MOTS SACRÉS — jamais supprimés ───────────────────────────────────────────
+# ── RÉFÉRENTIELS BIOLOGIQUES (v2.2) ──────────────────────────────────────────
+# Omega_sacred : Mots qui ne doivent JAMAIS être supprimés (Logique & Blockchain)
 SACRED_WORDS = {
-    # Logique générale
-    "not", "no", "never", "neither", "nor",
-    "if", "then", "else", "unless", "except", "without",
-    "false", "true", "always", "only", "still", "already",
-    "each", "half", "all", "none", "every", "both", "either",
-    "more", "less", "than", "equal", "most", "least", "as",
-    "because", "therefore", "thus", "since", "although", "though",
-    "how", "what", "where", "when", "which", "who", "why",
-    "calculate", "total", "many", "much", "left", "result",
-    "before", "after", "between", "first", "last",
-    # Solidity / Blockchain (domaine technique générique)
-    "address", "uint256", "uint8", "uint", "int256", "bool",
-    "bytes32", "bytes", "string",
-    "external", "public", "private", "internal", "view", "pure",
-    "require", "contract", "mapping", "constructor", "function",
-    "returns", "memory", "storage", "calldata",
-    "emit", "event", "payable", "indexed",
+    "not", "if", "then", "false", "true", "each", "half", "except", 
+    "how", "what", "calculate", "total", "many", "left", "result",
+    "before", "after", "between", "first", "last", "only",
+    "address", "uint256", "external", "public", "require", "contract",
+    "function", "returns", "mapping", "constructor", "event", "emit"
 }
 
-
-# ── CONFIGURATION ─────────────────────────────────────────────────────────────
+# ── CONFIGURATION V2.2 ───────────────────────────────────────────────────────
 class EZeroConfig:
     def __init__(self, **kwargs):
-        self.n_min        = kwargs.get('n_min', 5)
-        self.rho_target   = kwargs.get('rho_target', 0.3)
-        self.memory_path  = kwargs.get('memory_path', 'ezero_memory.json')
-        self.noise_thresh = kwargs.get('noise_thresh', 0.5)
+        self.n_min = kwargs.get('n_min', 3) # Réduit pour tester des petits segments bruités
+        self.rho_target = kwargs.get('rho_target', 0.3)
+        self.memory_path = kwargs.get('memory_path', 'ezero_memory.json')
+        self.delta = 0.5  # Seuil du Théorème de Décontamination (v2.2)
 
-
-# ── FILTRE E-ZERO ─────────────────────────────────────────────────────────────
+# ── ORGANISME E-ZERO V2.2 ────────────────────────────────────────────────────
 class EZeroFilter:
-    def __init__(self, config=None, **kwargs):
+    def __init__(self, config=None):
         self.config = config or EZeroConfig()
-
-        # Membrane logique
         self.m_logic = SACRED_WORDS
-
-        # Membrane de spécificité — vocabulaire de référence neutre
-        self.m_spec = {
-            # Matériaux et sciences
-            "iron", "copper", "aluminum", "gold", "silver",
-            "metal", "waste", "chemical", "compound", "element",
-            # Objets courants (GSM8K)
-            "battery", "device", "phone", "machine", "engine",
-            "arrows", "quivers", "tokens", "coins", "dollars", "cents",
-            "hours", "days", "weeks", "months", "years", "minutes",
-            "boxes", "bags", "bottles", "cans", "items", "units",
-            "workers", "students", "people", "children",
-            "apples", "oranges", "books", "cars",
-            "kg", "mah", "km", "ml", "liters", "meters",
-            # Objets BBH
-            "book", "vase", "pencil", "cup", "envelope", "keychain",
-            "notebook", "ball", "cube", "pyramid", "house",
-            # Couleurs (BBH colored objects)
-            "red", "blue", "green", "yellow", "white",
-            "pink", "purple", "brown", "orange", "black", "gray",
-            # Positions (BBH logical deduction)
-            "left", "right", "front", "back", "top", "bottom",
-            "leftmost", "rightmost",
-            # Prénoms génériques (GSM8K / BBH)
-            "janet", "mary", "john", "tom", "alice", "bob",
-            "dave", "eve", "carol", "billy", "suzy", "jane",
-            # Blockchain générique
-            "uint256", "address", "contract", "mapping",
-        }
-
-        # Mémoire synaptique
-        self.synaptic_weights = {}
-        self.immune_memory    = set()
+        self.m_spec  = {"iron", "copper", "aluminum", "gold", "waste", "recycling", "battery"}
+        self.synaptic_weights = {} 
+        self.immune_memory = set()
         self.load_memories()
 
-    # ── MÉMOIRE ───────────────────────────────────────────────────────────────
     def load_memories(self):
-        """Charge la mémoire synaptique depuis le fichier JSON."""
+        """Charge le cerveau synaptique (Expertise PeP Recycling & Blockchain)."""
         try:
-            with open(self.config.memory_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                self.synaptic_weights = data.get("weights", {})
-                self.immune_memory    = set(data.get("immune", []))
-                print(f"🧠 Cerveau chargé : {len(self.synaptic_weights)} synapses prêtes.")
-        except (FileNotFoundError, json.JSONDecodeError):
-            pass  # Démarrage froid silencieux
+            if os.path.exists(self.config.memory_path):
+                with open(self.config.memory_path, "r", encoding='utf-8') as f:
+                    data = json.load(f)
+                    # Supporte les formats dict simple ou structuré (weights/immune)
+                    if isinstance(data, dict) and "weights" in data:
+                        self.synaptic_weights = data.get("weights", {})
+                        self.immune_memory = set(data.get("immune", []))
+                    else:
+                        self.synaptic_weights = data
+                print(f"🧠 Cerveau v2.2 chargé : {len(self.synaptic_weights)} synapses prêtes.")
+            else:
+                print("⚠️ Aucun cerveau trouvé. Démarrage à froid.")
+        except Exception as e:
+            print(f"❌ Erreur de lecture mémoire : {e}")
 
-    def save_memories(self):
-        """Sauvegarde la mémoire synaptique."""
-        with open(self.config.memory_path, "w", encoding="utf-8") as f:
-            json.dump({
-                "weights": self.synaptic_weights,
-                "immune":  list(self.immune_memory)
-            }, f, indent=2)
+    def _is_numeric(self, token):
+        """M1 : Membrane Numérique (Chiffres et adresses Blockchain)."""
+        return bool(re.search(r'\d|0x[a-fA-F0-9]{40}', token))
 
-    # ── MEMBRANE DE DÉCONTAMINATION ───────────────────────────────────────────
-    def _is_clean_token(self, token: str) -> bool:
-        """
-        Vérifie qu'un token est un vrai mot — pas du bruit aléatoire.
-        Un token propre doit avoir au moins 50% de caractères alphanumériques.
-
-        Exemples :
-          'contract'       → ✅ 100% alnum
-          '500kg'          → ✅ 100% alnum
-          '0x1234abcd'     → ✅ adresse blockchain valide
-          '$4~z3whJ,GVEc'  → ❌ bruit (< 50% alnum)
-          'R57W.Yz_plF-&J' → ❌ bruit (< 50% alnum)
-        """
-        # Adresses blockchain — toujours valides
-        if re.match(r'^0x[a-fA-F0-9]{6,}$', token):
-            return True
-        alnum = sum(1 for c in token if c.isalnum())
-        return (alnum / len(token)) >= self.config.noise_thresh if token else False
-
-    # ── DÉTECTION NUMÉRIQUE STRICTE ───────────────────────────────────────────
-    def _is_numeric(self, token: str) -> bool:
-        """
-        Détecte uniquement les vrais nombres, unités, dates et versions.
-        Ne garde PAS les tokens bruités qui contiennent des chiffres.
-        """
-        t = token.strip(",.?!:;()\"'")
-        return bool(
-            re.match(r'^-?\d+(\.\d+)?%?$', t) or       # 42, -3, 30%
-            re.match(r'^\d+[a-zA-Z]{1,5}$', t) or       # 500kg, 5000mAh
-            re.match(r'^\d{1,2}/\d{1,2}/\d{2,4}$', t) or # 12/25/1937
-            re.match(r'^(19|20)\d{2}$', t) or            # 1937, 2026
-            re.match(r'^\d{1,2}:\d{2}$', t) or           # 10:30
-            re.match(r'^\^?\d+\.\d+\.\d+$', t) or        # ^0.8.20
-            re.match(r'^0x[a-fA-F0-9]{6,}$', t)          # 0x1234...
-        )
-
-    def _get_dynamic_weight(self, token: str) -> float:
-        """Retourne le poids synaptique d'un token."""
+    def _get_dynamic_weight(self, token):
         clean = token.lower().strip(",.?!:;()\"'")
         return self.synaptic_weights.get(clean, 1.0)
 
-    # ── APPRENTISSAGE PAR RÉTROACTION ─────────────────────────────────────────
-    def feedback_loop(self, prompt: str, score: float):
+    def _decontaminate(self, token):
         """
-        Renforce les synapses utiles (score >= 70)
-        ou affaiblit les tokens nuisibles (score < 30).
+        MO : MEMBRANE DE DÉCONTAMINATION (Théorème v2.2)
+        Calcule le ratio alphanumérique pour éliminer le bruit.
         """
-        for t in prompt.split():
-            clean = t.lower().strip(",.?!:;()\"'")
-            if not clean:
-                continue
-            if score >= 70:
-                self.synaptic_weights[clean] = (
-                    self.synaptic_weights.get(clean, 1.0) + 0.1
-                )
-            elif score < 30:
-                self.immune_memory.discard(clean)
-                self.synaptic_weights[clean] = max(
-                    0.0, self.synaptic_weights.get(clean, 1.0) - 0.2
-                )
+        if not token: return False
+        alnum_count = sum(c.isalnum() for c in token)
+        # delta = 0.5 (Rejette si plus de 50% de symboles bizarres)
+        return (alnum_count / len(token)) >= self.config.delta
 
-    # ── FILTRE PRINCIPAL ──────────────────────────────────────────────────────
-    def filter(self, prompt: str, mode: str = "general") -> dict:
+    def filter(self, prompt: str) -> dict:
+        """Moteur HEDR : Extraction du Squelette Logique S(P)."""
         t_start = time.perf_counter()
-        tokens  = prompt.split()
-        n       = len(tokens)
+        # Segmentation propre (Tokenization)
+        tokens = prompt.replace('\n', ' ').split()
+        n = len(tokens)
 
         if n < self.config.n_min:
-            return {
-                "skeleton":   prompt,
-                "activated":  False,
-                "gain_pct":   0.0,
-                "rho":        1.0,
-                "tokens_in":  n,
-                "tokens_out": n,
-                "ms":         0.0,
-                "elapsed_ms": 0.0,
-                "plasticity": {
-                    "synapses":   len(self.synaptic_weights),
-                    "antibodies": len(self.immune_memory),
-                }
-            }
+            return {"skeleton": prompt, "activated": False, "gain_pct": 0.0, "ms": 0.0}
 
         keep = []
         for t in tokens:
             clean = t.lower().strip(",.?!:;()\"'")
-
-            # Étape 0 — Décontamination : rejeter le bruit immédiatement
-            if not self._is_clean_token(t):
+            
+            # --- CASCADE DES 5 MEMBRANES ---
+            # 1. MO: Décontamination (Élimine le bruit complexe)
+            if not self._decontaminate(t):
                 continue
 
-            # Étape 1 — Conditions de survie
-            if (self._is_numeric(t) or
-                clean in self.m_logic or
-                clean in self.m_spec or
-                clean in self.immune_memory or
-                self._get_dynamic_weight(t) > 1.3):
+            # 2. M1-M2: Mots Sacrés & Numérique (Signal vital)
+            is_sacred = clean in self.m_logic or clean in self.m_spec
+            is_numeric = self._is_numeric(t)
+            
+            # 3. M4: Poids Synaptique (Expertise apprise)
+            is_immune = clean in self.immune_memory
+            is_strong = self._get_dynamic_weight(t) > 1.3
+            
+            if is_numeric or is_sacred or is_immune or is_strong:
                 keep.append(t)
 
         skeleton = " ".join(keep)
-        rho      = len(keep) / n if n > 0 else 1.0
+        rho = len(keep) / n if n > 0 else 1.0
+        # Théorème de Gain G = (1 - rho^2) * 100
         gain_pct = (1 - (rho ** 2)) * 100
-        elapsed  = round((time.perf_counter() - t_start) * 1000, 3)
 
         return {
-            "skeleton":   skeleton,
-            "tokens_in":  n,
+            "skeleton": skeleton,
+            "tokens_in": n,
             "tokens_out": len(keep),
-            "gain_pct":   round(gain_pct, 1),
-            "rho":        round(rho, 4),
-            "ms":         elapsed,
-            "elapsed_ms": elapsed,
-            "activated":  True,
+            "gain_pct": round(gain_pct, 1),
+            "ms": round((time.perf_counter() - t_start) * 1000, 3),
             "plasticity": {
-                "synapses":   len(self.synaptic_weights),
-                "antibodies": len(self.immune_memory),
+                "synapses": len(self.synaptic_weights)
             }
         }
+
+if __name__ == "__main__":
+    # Test rapide de robustesse
+    filter_tool = EZeroFilter()
+    test_input = "z<pueH'3E contract PeP_Recycling { uint256 850; }"
+    result = filter_tool.filter(test_input)
+    print(f"\nEntrée : {test_input}")
+    print(f"Sortie : {result['skeleton']}")
+    print(f"Gain   : {result['gain_pct']}%")
